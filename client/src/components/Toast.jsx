@@ -1,0 +1,34 @@
+import { useState, useEffect, createContext, useContext, useCallback } from 'react';
+
+const ToastContext = createContext(null);
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = useCallback((message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+
+  return (
+    <ToastContext.Provider value={{ addToast }}>
+      {children}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+        {toasts.map(t => (
+          <div key={t.id} className={`flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium animate-fade-in
+            ${t.type === 'success' ? 'bg-green-600' : t.type === 'error' ? 'bg-red-600' : 'bg-primary'}`}>
+            <span className="text-lg leading-none">
+              {t.type === 'success' ? '✓' : t.type === 'error' ? '✕' : 'ℹ'}
+            </span>
+            <span>{t.message}</span>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+export function useToast() {
+  return useContext(ToastContext);
+}
