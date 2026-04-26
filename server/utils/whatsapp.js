@@ -1,20 +1,20 @@
 const axios = require('axios');
 
-async function sendWhatsApp(message) {
-  const phone = process.env.CALLMEBOT_PHONE;
-  const apiKey = process.env.CALLMEBOT_APIKEY;
-  if (!phone || !apiKey) {
-    console.log('WhatsApp not configured, skipping. Message:', message);
+async function sendWhatsAppAlert(message) {
+  const phone   = process.env.CALLMEBOT_PHONE;
+  const apikey  = process.env.CALLMEBOT_APIKEY;
+  if (!apikey) {
+    console.log('[WhatsApp] CALLMEBOT_APIKEY not set — skipping');
     return;
   }
   const encoded = encodeURIComponent(message);
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encoded}&apikey=${apiKey}`;
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encoded}&apikey=${apikey}`;
   try {
-    await axios.get(url, { timeout: 10000 });
-    console.log('WhatsApp message sent');
+    await axios.get(url);
+    console.log('[WhatsApp] Alert sent');
   } catch (err) {
-    console.error('WhatsApp send error:', err.message);
+    console.error('[WhatsApp] Error:', err.message);
   }
 }
 
-module.exports = { sendWhatsApp };
+module.exports = { sendWhatsAppAlert };
