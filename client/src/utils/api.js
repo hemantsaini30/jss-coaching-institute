@@ -1,65 +1,52 @@
-import axios from 'axios';
+import axios from 'axios'
+import useAuthStore from '../store/authStore'
 
-const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
-});
+const api = axios.create({ baseURL: '/api', withCredentials: true })
 
-// Attach JWT from store on every request
-api.interceptors.request.use((config) => {
-  // Import dynamically to avoid circular deps
-  const token = window.__jssToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// Attach access token to every request
+api.interceptors.request.use(config => {
+  const token = useAuthStore.getState().accessToken
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 // On 401: try refresh, else logout
-let isRefreshing = false;
-let failedQueue = [];
-
-function processQueue(error, token = null) {
-  failedQueue.forEach(prom => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
-  });
-  failedQueue = [];
-}
+let refreshing = false
+let queue = []
 
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
+  res => res,
+  async err => {
+    const original = err.config
+    if (err.response?.status === 401 && !original._retry) {
+      if (refreshing) {
         return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
+          queue.push({ resolve, reject })
         }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        });
+          original.headers.Authorization = `Bearer ${token}`
+          return api(original)
+        })
       }
-      originalRequest._retry = true;
-      isRefreshing = true;
+      original._retry = true
+      refreshing = true
       try {
-        const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        const newToken = res.data.accessToken;
-        window.__jssToken = newToken;
-        // Update store
-        const event = new CustomEvent('token:refresh', { detail: { token: newToken, user: res.data.user } });
-        window.dispatchEvent(event);
-        processQueue(null, newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
-        window.dispatchEvent(new CustomEvent('auth:logout'));
-        return Promise.reject(err);
+        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        useAuthStore.getState().setAuth(data.user, data.accessToken)
+        queue.forEach(p => p.resolve(data.accessToken))
+        queue = []
+        original.headers.Authorization = `Bearer ${data.accessToken}`
+        return api(original)
+      } catch {
+        queue.forEach(p => p.reject())
+        queue = []
+        useAuthStore.getState().clearAuth()
+        window.location.href = '/login'
       } finally {
-        isRefreshing = false;
+        refreshing = false
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(err)
   }
-);
+)
 
-export default api;
+export default api

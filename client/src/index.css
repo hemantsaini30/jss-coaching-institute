@@ -3,59 +3,40 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    font-family: 'DM Sans', sans-serif;
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #F9FAFB;
+    color: #111827;
+    -webkit-font-smoothing: antialiased;
   }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: 'Sora', sans-serif;
+  :root {
+    --hero-bg: #6C3FCF;
   }
 }
 
 @layer utilities {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
 /* Marquee animation */
 @keyframes marquee {
-  0% {
-    transform: translateX(100%);
-  }
-
-  100% {
-    transform: translateX(-100%);
-  }
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
+.animate-marquee { animation: marquee 20s linear infinite; }
 
-.animate-marquee {
-  animation: marquee 20s linear infinite;
+/* Pulsing live badge */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
-
-/* Pulse live badge */
-@keyframes pulse-live {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-pulse-live {
-  animation: pulse-live 1.5s ease-in-out infinite;
+.live-pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #ef4444;
+  animation: pulse-ring 1.2s ease-out infinite;
 }

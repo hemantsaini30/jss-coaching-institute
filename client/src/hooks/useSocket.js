@@ -1,19 +1,29 @@
-import { useEffect } from 'react';
-import { getSocket } from '../utils/socket';
-import useNotifStore from '../store/notifStore';
+import { useEffect } from 'react'
+import { connectSocket, disconnectSocket, getSocket } from '../utils/socket'
+import useAuthStore from '../store/authStore'
+import useNotificationStore from '../store/notificationStore'
 
 export function useSocket() {
-  const addNotification = useNotifStore(s => s.addNotification);
+  const user = useAuthStore(s => s.user)
+  const addNotification = useNotificationStore(s => s.addNotification)
 
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
+    if (!user) return
+    const socket = connectSocket()
 
-    const handleNotif = (notif) => {
-      addNotification(notif);
-    };
+    if (user.role === 'student' && user.classID) {
+      socket.emit('join:class', user.classID)
+    }
+    if (user.role === 'teacher' || user.role === 'admin') {
+      socket.emit('join:teachers')
+    }
 
-    socket.on('notification:new', handleNotif);
-    return () => socket.off('notification:new', handleNotif);
-  }, [addNotification]);
+    socket.on('notification:new', (notif) => addNotification(notif))
+
+    return () => {
+      socket.off('notification:new')
+    }
+  }, [user, addNotification])
+
+  return getSocket()
 }
