@@ -12,5 +12,6 @@ router.get('/users',                   ctrl.getUsers);
 router.post('/classes',                ctrl.createClass);
 router.get('/logs',                    ctrl.getLogs);
 router.post('/notifications',          ctrl.createNotification);
+router.get('/notifications', ctrl.getNotifications);
 
 module.exports = router;

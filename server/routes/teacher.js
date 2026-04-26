@@ -14,5 +14,6 @@ router.post('/mcqs',                            ctrl.createMCQ);
 router.get('/mcqs/:classID',                    ctrl.getMCQsByClass);
 router.get('/results/:classID',                 ctrl.getClassResults);
 router.post('/notifications',                   ctrl.createNotification);
+router.get('/students/:classID', ctrl.getStudentsByClass);
 
 module.exports = router;

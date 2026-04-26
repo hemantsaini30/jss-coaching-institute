@@ -126,8 +126,18 @@ async function createNotification(req, res) {
     return res.status(500).json({ message: err.message });
   }
 }
+async function getNotifications(req, res) {
+  try {
+    const notifs = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(50)
+    return res.json(notifs)
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
 
 module.exports = {
   getFeed, getInquiries, updateInquiryStatus, getUsers,
-  createClass, getLogs, createNotification,
+  createClass, getLogs, createNotification,getNotifications,
 };

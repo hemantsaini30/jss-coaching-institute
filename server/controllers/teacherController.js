@@ -188,8 +188,20 @@ async function createNotification(req, res) {
   }
 }
 
+async function getStudentsByClass(req, res) {
+  try {
+    const students = await User.find(
+      { classID: req.params.classID, role: 'student' },
+      'userID name classID'
+    )
+    return res.json(students)
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
 module.exports = {
   getMyClasses, uploadContent, deleteContent, saveAttendance,
   getAttendanceSheet, createMCQ, getMCQsByClass, getClassResults,
-  createNotification,
+  createNotification, getStudentsByClass,
 };
