@@ -1,7 +1,12 @@
 import axios from 'axios'
 import useAuthStore from '../store/authStore'
 
-const api = axios.create({ baseURL: '/api', withCredentials: true })
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
+const api = axios.create({ 
+  baseURL: BASE_URL, 
+  withCredentials: true 
+})
 
 // Attach access token to every request
 api.interceptors.request.use(config => {

@@ -1,20 +1,28 @@
 const axios = require('axios');
 
-async function sendWhatsAppAlert(message) {
-  const phone   = process.env.CALLMEBOT_PHONE;
-  const apikey  = process.env.CALLMEBOT_APIKEY;
-  if (!apikey) {
-    console.log('[WhatsApp] CALLMEBOT_APIKEY not set — skipping');
+async function sendTelegramAlert(message) {
+  const token  = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+
+  if (!token || !chatId) {
+    console.log('[Telegram] Credentials not set — skipping');
     return;
   }
-  const encoded = encodeURIComponent(message);
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encoded}&apikey=${apikey}`;
+
+  // We use POST for Telegram as it's more reliable for longer messages
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
   try {
-    await axios.get(url);
-    console.log('[WhatsApp] Alert sent');
+    await axios.post(url, {
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'HTML' // This allows you to use <b>bold</b> or <i>italic</i> tags
+    });
+    console.log('[Telegram] Alert sent');
   } catch (err) {
-    console.error('[WhatsApp] Error:', err.message);
+    // Detailed error logging to help you debug if the token/ID is wrong
+    console.error('[Telegram] Error:', err.response?.data?.description || err.message);
   }
 }
 
-module.exports = { sendWhatsAppAlert };
+module.exports = { sendTelegramAlert };

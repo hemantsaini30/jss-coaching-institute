@@ -102,7 +102,10 @@ function Hero({ onEnrollClick }) {
             Enroll Now <ChevronRight size={16} />
           </Button>
           <Link to="/login">
-            <Button variant="secondary" className="text-base px-8 py-3 border-white text-white hover:bg-white/10">
+            <Button 
+              variant="secondary" 
+              className="text-base px-8 py-3 border-white/40 bg-white/5 text-white hover:bg-white/20 transition-all"
+            >
               Student Login
             </Button>
           </Link>
