@@ -231,7 +231,7 @@ function About() {
 function Courses() {
   const { data: classes = [], isLoading } = useQuery({
     queryKey: ['publicClasses'],
-    queryFn:  () => axios.get('/api/public/classes').then(r => r.data),
+    queryFn:  () => api.get('/api/public/classes').then(r => r.data),
   })
 
   const colors = ['from-purple-500 to-purple-700', 'from-orange-400 to-orange-600', 'from-blue-500 to-blue-700',
@@ -282,7 +282,7 @@ function Courses() {
 function InquiryForm({ open, onClose }) {
   const { data: classes = [] } = useQuery({
     queryKey: ['publicClasses'],
-    queryFn:  () => axios.get('/api/public/classes').then(r => r.data),
+    queryFn:  () => api.get('/api/public/classes').then(r => r.data),
   })
 
   const [form, setForm]       = useState({ name: '', phone: '', email: '', classInterested: '', message: '' })
@@ -294,7 +294,7 @@ function InquiryForm({ open, onClose }) {
     e.preventDefault()
     setLoading(true)
     try {
-      await axios.post('/api/public/inquiry', form)
+      await api.post('/api/public/inquiry', form)
       toast.success("Your inquiry has been submitted! We'll contact you soon.")
       setForm({ name: '', phone: '', email: '', classInterested: '', message: '' })
       onClose()
