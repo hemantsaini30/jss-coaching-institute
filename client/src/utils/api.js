@@ -1,7 +1,7 @@
 import axios from 'axios'
 import useAuthStore from '../store/authStore'
 
-const BASE_URL = 'https://jss-coaching-institute-production.up.railway.app';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 console.log('API Base URL:', BASE_URL);
 
 const api = axios.create({ 

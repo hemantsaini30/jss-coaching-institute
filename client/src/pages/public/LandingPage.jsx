@@ -5,6 +5,7 @@ import axios from 'axios'
 import toast from 'react-hot-toast'
 import { Phone, Mail, MapPin, Menu, X, BookOpen, Users, Award, ChevronRight } from 'lucide-react'
 import Button from '../../components/Button'
+import api from '../../utils/api'
 
 // ─── Navbar ───────────────────────────────────────────────────────
 function Navbar({ onEnrollClick }) {
