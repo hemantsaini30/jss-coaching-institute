@@ -19,9 +19,13 @@ export function useSocket() {
     }
 
     socket.on('notification:new', (notif) => addNotification(notif))
+    socket.on('test:live', (test) => {
+      addNotification({ message: `Live test started: ${test.title}`, createdAt: new Date() })
+    })
 
     return () => {
       socket.off('notification:new')
+      socket.off('test:live')
     }
   }, [user, addNotification])
 

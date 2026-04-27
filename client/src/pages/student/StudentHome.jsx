@@ -43,10 +43,11 @@ export default function StudentHome() {
   })
 
   const { data: liveMCQs = [] } = useQuery({
-    queryKey: ['liveMCQs', user.classID],
-    queryFn:  () => api.get(`/student/mcqs/live/${user.classID}`).then(r => r.data),
-    refetchInterval: 30000,
-  })
+  queryKey: ['liveMCQs', user.classID],
+  // Changed /mcqs/live/ to /tests/live/
+  queryFn: () => api.get(`/student/tests/live/${user.classID}`).then(r => r.data),
+  refetchInterval: 30000,
+})
 
   const { data: results } = useQuery({
     queryKey: ['results', user.userID],
@@ -107,7 +108,7 @@ export default function StudentHome() {
           {liveMCQs.map(mcq => (
             <div key={mcq._id} className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-medium text-gray-800 text-sm">{mcq.question.slice(0, 60)}…</p>
+                <p className="font-medium text-gray-800 text-sm">{(mcq.question?.slice(0, 60) || mcq.title?.slice(0, 60) || "Untitled Test")}…</p>
                 <p className="text-xs text-gray-500 mt-0.5">Ends: {new Date(mcq.endTime).toLocaleTimeString()}</p>
               </div>
               <Link to="/student/test">

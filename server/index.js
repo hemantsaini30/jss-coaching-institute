@@ -39,14 +39,14 @@ io.on('connection', (socket) => {
 });
 
 // ─── MCQ live broadcast (every 60s) ───
-const MCQ = require('./models/MCQ');
+const Test = require('./models/Test')
 setInterval(async () => {
   try {
-    const now = new Date();
-    const liveMCQs = await MCQ.find({ startTime: { $lte: now }, endTime: { $gte: now } });
-    liveMCQs.forEach(mcq => io.to(`class_${mcq.classID}`).emit('mcq:live', mcq));
+    const now   = new Date()
+    const live  = await Test.find({ startTime: { $lte: now }, endTime: { $gte: now } })
+    live.forEach(t => io.to(`class_${t.classID}`).emit('test:live', t))
   } catch (err) {
-    console.error('[MCQ Interval]', err.message);
+    console.error('[Test Interval]', err.message)
   }
 }, 60000);
 

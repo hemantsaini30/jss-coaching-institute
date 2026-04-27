@@ -1,11 +1,13 @@
 const Class        = require('../models/Class');
 const User         = require('../models/User');
 const Content      = require('../models/Content');
-const MCQ          = require('../models/MCQ');
-const MCQResult    = require('../models/MCQResult');
 const Attendance   = require('../models/Attendance');
 const Notification = require('../models/Notification');
 const gemini       = require('../utils/gemini');
+const Test     = require('../models/Test');
+const Question = require('../models/Question');
+const { get } = require('mongoose');
+const TestResult = require('../models/TestResult');
 
 async function getMyClasses(req, res) {
   try {
@@ -75,90 +77,65 @@ async function getAttendanceSheet(req, res) {
   }
 }
 
-async function createMCQ(req, res) {
-  try {
-    const { question, options, correctIndex, classID, startTime, endTime } = req.body;
-    if (!question || !options || options.length !== 4 || correctIndex === undefined || !classID || !startTime || !endTime) {
-      return res.status(400).json({ message: 'All MCQ fields required' });
-    }
-
-    // Save MCQ first without AI enrichment
-    const mcq = await MCQ.create({
-      question, options, correctIndex, classID,
-      teacherID: req.user.userID,
-      startTime: new Date(startTime),
-      endTime:   new Date(endTime),
-    });
-
-    // AI enrichment (async, update in background)
-    try {
-      const { explanation, topicTag } = await gemini.enrichMCQ(question, options[correctIndex]);
-      await MCQ.findByIdAndUpdate(mcq._id, { explanation, topicTag });
-      const updated = await MCQ.findById(mcq._id);
-      return res.status(201).json(updated);
-    } catch (aiErr) {
-      console.error('[Gemini] Enrichment failed:', aiErr.message);
-      return res.status(201).json({ ...mcq.toObject(), aiError: 'AI enrichment failed' });
-    }
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-}
-
-async function getMCQsByClass(req, res) {
-  try {
-    const mcqs = await MCQ.find({ classID: req.params.classID }).sort({ createdAt: -1 });
-    return res.json(mcqs);
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-}
 
 async function getClassResults(req, res) {
   try {
     const { classID } = req.params;
+
+    // 1. Get students
     const students = await User.find({ classID, role: 'student' }, 'userID name');
+    if (!students.length) return res.json({ results: [], weakTopics: [] });
     const studentIDs = students.map(s => s.userID);
 
-    const scores = await MCQResult.aggregate([
+    // 2. Aggregate scores from the TestResult documents
+    const scores = await TestResult.aggregate([
       { $match: { classID, studentID: { $in: studentIDs } } },
+      { $unwind: '$answers' }, // Flatten the answers array to access each question
       {
         $group: {
-          _id:     '$studentID',
-          total:   { $sum: 1 },
-          correct: { $sum: { $cond: ['$isCorrect', 1, 0] } },
-          topics:  { $addToSet: '$topicTag' },
+          _id: '$studentID',
+          total: { $sum: 1 },
+          correct: { $sum: { $cond: ['$answers.isCorrect', 1, 0] } },
         },
       },
     ]);
 
+    // 3. Map results for the table
     const results = students.map(s => {
       const score = scores.find(sc => sc._id === s.userID);
       return {
-        userID:  s.userID,
-        name:    s.name,
-        total:   score?.total   || 0,
+        userID: s.userID,
+        name: s.name,
+        total: score?.total || 0,
         correct: score?.correct || 0,
-        score:   score?.total ? Math.round((score.correct / score.total) * 100) : 0,
+        score: score?.total ? Math.round((score.correct / score.total) * 100) : 0,
       };
     });
 
-    // Weak topics (classwide)
-    const topicMap = {};
-    const allResults = await MCQResult.find({ classID, studentID: { $in: studentIDs } });
-    allResults.forEach(r => {
-      const t = r.topicTag || 'General';
-      if (!topicMap[t]) topicMap[t] = { total: 0, correct: 0 };
-      topicMap[t].total++;
-      if (r.isCorrect) topicMap[t].correct++;
-    });
-    const weakTopics = Object.entries(topicMap)
-      .map(([tag, d]) => ({ tag, percentage: Math.round((d.correct / d.total) * 100) }))
+    // 4. Calculate Weak Topics by flattening the answers again
+    const topicStats = await TestResult.aggregate([
+      { $match: { classID, studentID: { $in: studentIDs } } },
+      { $unwind: '$answers' },
+      {
+        $group: {
+          _id: { $ifNull: ['$answers.topicTag', 'General'] },
+          total: { $sum: 1 },
+          correct: { $sum: { $cond: ['$answers.isCorrect', 1, 0] } },
+        },
+      },
+    ]);
+
+    const weakTopics = topicStats
+      .map(t => ({
+        tag: t._id || 'General',
+        percentage: Math.round((t.correct / t.total) * 100),
+      }))
       .filter(t => t.percentage < 60)
       .sort((a, b) => a.percentage - b.percentage);
 
     return res.json({ results, weakTopics });
   } catch (err) {
+    console.error("Analytics Error:", err);
     return res.status(500).json({ message: err.message });
   }
 }
@@ -199,9 +176,132 @@ async function getStudentsByClass(req, res) {
     return res.status(500).json({ message: err.message })
   }
 }
+async function createTest(req, res) {
+  try {
+    const { title, classID, duration, startTime, endTime } = req.body
+    if (!title || !classID || !duration || !startTime || !endTime) {
+      return res.status(400).json({ message: 'title, classID, duration, startTime, endTime required' })
+    }
+    if (duration < 1 || duration > 180) {
+      return res.status(400).json({ message: 'Duration must be between 1 and 180 minutes' })
+    }
+    const test = await Test.create({
+      title, classID, duration,
+      teacherID: req.user.userID,
+      startTime: new Date(startTime),
+      endTime:   new Date(endTime),
+    })
+    return res.status(201).json(test)
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+async function getTestsByClass(req, res) {
+  try {
+    const tests = await Test.find({ classID: req.params.classID }).sort({ createdAt: -1 })
+    // Attach question count to each test
+    const withCount = await Promise.all(tests.map(async t => {
+      const count = await Question.countDocuments({ testID: t._id })
+      return { ...t.toObject(), questionCount: count }
+    }))
+    return res.json(withCount)
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+async function deleteTest(req, res) {
+  try {
+    await Question.deleteMany({ testID: req.params.testID })
+    await Test.findByIdAndDelete(req.params.testID)
+    return res.json({ message: 'Test and all questions deleted' })
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+async function addQuestion(req, res) {
+  try {
+    const { question, options, correctIndex } = req.body
+
+    // Only require options array of length 4 — content can be empty (draft)
+    if (!options || options.length !== 4) {
+      return res.status(400).json({ message: '4 options required' })
+    }
+    if (correctIndex === undefined || correctIndex === null) {
+      return res.status(400).json({ message: 'correctIndex required' })
+    }
+
+    const test = await Test.findById(req.params.testID)
+    if (!test) return res.status(404).json({ message: 'Test not found' })
+
+    const order = await Question.countDocuments({ testID: req.params.testID })
+
+    const q = await Question.create({
+      testID:       req.params.testID,
+      classID:      test.classID,
+      question:     question || '',
+      options,
+      correctIndex: Number(correctIndex),
+      order,
+    })
+
+    // AI enrichment only if question has real content
+    res.status(201).json(q)
+
+    if (question && question.trim().length > 2 && options[correctIndex]?.trim()) {
+      try {
+        const { enrichMCQ } = require('../utils/gemini')
+        console.log("Calling Groq now...");
+        const { explanation, topicTag } = await enrichMCQ(question, options[correctIndex])
+        await Question.findByIdAndUpdate(q._id, { explanation, topicTag })
+      } catch (aiErr) {
+        console.error('[Gemini] Enrichment failed:', aiErr.message)
+      }
+    }
+
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+async function updateQuestion(req, res) {
+  try {
+    const { question, options, correctIndex } = req.body
+    const q = await Question.findByIdAndUpdate(
+      req.params.qID,
+      { question, options, correctIndex: Number(correctIndex) },
+      { new: true }
+    )
+    if (!q) return res.status(404).json({ message: 'Question not found' })
+    return res.json(q)
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+async function deleteQuestion(req, res) {
+  try {
+    await Question.findByIdAndDelete(req.params.qID)
+    return res.json({ message: 'Deleted' })
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+async function getQuestions(req, res) {
+  try {
+    const questions = await Question.find({ testID: req.params.testID }).sort({ order: 1 })
+    return res.json(questions)
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
 
 module.exports = {
   getMyClasses, uploadContent, deleteContent, saveAttendance,
-  getAttendanceSheet, createMCQ, getMCQsByClass, getClassResults,
-  createNotification, getStudentsByClass,
+  getAttendanceSheet, createTest, getTestsByClass, deleteTest,
+  addQuestion, updateQuestion, deleteQuestion, getQuestions,
+  createNotification, getStudentsByClass,getClassResults,
 };

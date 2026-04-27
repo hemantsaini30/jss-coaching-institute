@@ -43,7 +43,7 @@ export default function TeacherHome({ classes }) {
 
   const { data: mcqs = [] } = useQuery({
     queryKey: ['teacherMCQs', classID],
-    queryFn:  () => api.get(`/teacher/mcqs/${classID}`).then(r => r.data),
+    queryFn:  () => api.get(`/teacher/tests/${classID}`).then(r => r.data),
     enabled:  !!classID,
   })
 

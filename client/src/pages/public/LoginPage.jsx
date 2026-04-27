@@ -12,20 +12,24 @@ export default function LoginPage() {
   const navigate  = useNavigate()
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      const user = await login(userID.trim(), password.trim())
-      toast.success(`Welcome, ${user.name}!`)
-      if (user.role === 'student') navigate('/student/home')
-      else if (user.role === 'teacher') navigate('/teacher/home')
-      else navigate('/admin/home')
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed')
-    } finally {
-      setLoading(false)
-    }
+  e.preventDefault()
+  setLoading(true)
+  try {
+    const user = await login(userID.trim(), password.trim())
+    toast.success(`Welcome, ${user.name}!`)
+    if (user.role === 'student')      navigate('/student/home', { replace: true })
+    else if (user.role === 'teacher') navigate('/teacher/home', { replace: true })
+    else                              navigate('/admin/home',   { replace: true })
+  } catch (err) {
+    console.error('[Login Error]', err)
+    const msg = err.response?.data?.message
+      || err.message
+      || 'Login failed — check console'
+    toast.error(msg)
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-dark via-primary to-primary-light p-4">

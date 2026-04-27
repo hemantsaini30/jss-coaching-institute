@@ -1,7 +1,7 @@
 const User         = require('../models/User');
 const Class        = require('../models/Class');
 const Content      = require('../models/Content');
-const MCQ          = require('../models/MCQ');
+const MCQ          = require('../models/Test');
 const Inquiry      = require('../models/Inquiry');
 const Notification = require('../models/Notification');
 const { generatePassword } = require('../utils/passwordHelper');
