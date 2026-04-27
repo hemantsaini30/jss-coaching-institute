@@ -35,7 +35,7 @@ api.interceptors.response.use(
       original._retry = true
       refreshing = true
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
         useAuthStore.getState().setAuth(data.user, data.accessToken)
         queue.forEach(p => p.resolve(data.accessToken))
         queue = []
